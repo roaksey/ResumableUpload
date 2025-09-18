@@ -17,7 +17,6 @@ public class UploadSession
     public UploadState State { get; set; } = UploadState.Uploading;
     public string TempFolder { get; set; } = default!;
     public string? ReassembledPath { get; set; }
-    public string? Sha256 { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 

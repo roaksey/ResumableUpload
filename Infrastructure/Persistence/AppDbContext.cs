@@ -7,7 +7,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 {
     public DbSet<UploadSession> UploadSessions => Set<UploadSession>();
     public DbSet<UploadChunk> UploadChunks => Set<UploadChunk>();
-    public DbSet<UploadEvent> UploadEvents => Set<UploadEvent>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -15,14 +14,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             e.HasIndex(x => x.UploadId).IsUnique();
             e.Property(x => x.UploadId).HasMaxLength(100);
-            e.Property(x => x.UserId).HasMaxLength(100);
-            e.Property(x => x.TempFolder).HasMaxLength(512);
         });
         b.Entity<UploadChunk>(e =>
         {
             e.HasIndex(x => new { x.UploadSessionId, x.Index }).IsUnique();
-            e.Property(x => x.Path).HasMaxLength(512);
         });
-        base.OnModelCreating(b);
     }
 }

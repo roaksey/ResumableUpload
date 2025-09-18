@@ -33,8 +33,7 @@ namespace Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Path")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("nvarchar(512)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTimeOffset>("ReceivedAt")
                         .HasColumnType("datetimeoffset");
@@ -54,32 +53,6 @@ namespace Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("UploadChunks");
-                });
-
-            modelBuilder.Entity("Domain.Entities.UploadEvent", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset>("At")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("State")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("UploadSessionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UploadSessionId");
-
-                    b.ToTable("UploadEvents");
                 });
 
             modelBuilder.Entity("Domain.Entities.UploadSession", b =>
@@ -111,16 +84,12 @@ namespace Infrastructure.Persistence.Migrations
                     b.Property<int>("ReceivedChunks")
                         .HasColumnType("int");
 
-                    b.Property<string>("Sha256")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<int>("State")
                         .HasColumnType("int");
 
                     b.Property<string>("TempFolder")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("nvarchar(512)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("TotalChunks")
                         .HasColumnType("int");
@@ -138,8 +107,7 @@ namespace Infrastructure.Persistence.Migrations
 
                     b.Property<string>("UserId")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
@@ -153,17 +121,6 @@ namespace Infrastructure.Persistence.Migrations
                 {
                     b.HasOne("Domain.Entities.UploadSession", "UploadSession")
                         .WithMany("Chunks")
-                        .HasForeignKey("UploadSessionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("UploadSession");
-                });
-
-            modelBuilder.Entity("Domain.Entities.UploadEvent", b =>
-                {
-                    b.HasOne("Domain.Entities.UploadSession", "UploadSession")
-                        .WithMany()
                         .HasForeignKey("UploadSessionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();

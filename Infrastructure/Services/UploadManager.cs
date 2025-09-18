@@ -4,7 +4,8 @@ using Domain.Entities;
 using Domain.Enums;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-namespace Application.Services;
+
+namespace Infrastructure.Services;
 
 public class UploadManager : IUploadManager
 {
@@ -21,7 +22,7 @@ public class UploadManager : IUploadManager
         string userId, string uploadId, string fileName, string contentType,
         long totalSize, int chunkSize, int totalChunks, CancellationToken ct)
     {
-        var session = await _db.UploadSessions.FirstOrDefaultAsync(x => x.UploadId == uploadId, ct);
+        var session = await _db.UploadSessions.Include(x => x.Chunks).FirstOrDefaultAsync(x => x.UploadId == uploadId, ct);
         if (session is not null) return session;
 
         var folder = _storage.CreateSessionFolder(uploadId);
@@ -46,17 +47,15 @@ public class UploadManager : IUploadManager
 
     public async Task<bool> StoreChunkAsync(string uploadId, int index, long size, Stream content, CancellationToken ct)
     {
-        var session = await _db.UploadSessions.Include(x => x.Chunks)
-            .FirstOrDefaultAsync(x => x.UploadId == uploadId, ct)
-            ?? throw new InvalidOperationException("Session not found");
+        var s = await _db.UploadSessions.Include(x => x.Chunks).FirstAsync(x => x.UploadId == uploadId, ct);
 
-        var path = await _storage.SaveChunkAsync(session.TempFolder, index, content, ct);
+        var path = await _storage.SaveChunkAsync(s.TempFolder, index, content, ct);
 
-        if (!session.Chunks.Any(c => c.Index == index))
+        if (!s.Chunks.Any(c => c.Index == index))
         {
-            session.Chunks.Add(new UploadChunk
+            s.Chunks.Add(new UploadChunk
             {
-                UploadSessionId = session.Id,
+                UploadSessionId = s.Id,
                 Index = index,
                 Size = size,
                 Stored = true,
@@ -64,9 +63,9 @@ public class UploadManager : IUploadManager
             });
         }
 
-        session.ReceivedChunks = session.Chunks.Count;
-        session.ReceivedBytes = session.Chunks.Sum(c => c.Size);
-        session.UpdatedAt = DateTimeOffset.UtcNow;
+        s.ReceivedChunks = s.Chunks.Count;
+        s.ReceivedBytes = s.Chunks.Sum(c => c.Size);
+        s.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _db.SaveChangesAsync(ct);
         return true;
@@ -74,17 +73,14 @@ public class UploadManager : IUploadManager
 
     public async Task<bool> TryReassembleAsync(string uploadId, CancellationToken ct)
     {
-        var session = await _db.UploadSessions.Include(x => x.Chunks)
-            .FirstAsync(x => x.UploadId == uploadId, ct);
+        var s = await _db.UploadSessions.Include(x => x.Chunks).FirstAsync(x => x.UploadId == uploadId, ct);
+        if (s.ReceivedChunks != s.TotalChunks) return false;
 
-        if (session.ReceivedChunks != session.TotalChunks) return false;
+        var outPath = await _storage.ReassembleAsync(s.TempFolder, s.TotalChunks, s.OriginalFileName, ct);
 
-        var outName = Path.GetFileName(session.OriginalFileName);
-        var outPath = await _storage.ReassembleAsync(session.TempFolder, session.TotalChunks, outName, ct);
-
-        session.ReassembledPath = outPath;
-        session.State = UploadState.Uploaded;
-        session.UpdatedAt = DateTimeOffset.UtcNow;
+        s.ReassembledPath = outPath;
+        s.State = UploadState.Completed;
+        s.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _db.SaveChangesAsync(ct);
         return true;
